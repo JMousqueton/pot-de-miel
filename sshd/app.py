@@ -297,8 +297,8 @@ def generate_fake_file_contents(session_username):
 def simulate_command(command, hostname, fake_uname, session_username=None, session_ip=None):
     command = command.strip()
     if not command:
-        return ""  # Empty command, nothing to do
-
+        return ""
+    
     cmd_lower = command.lower()
 
     if cmd_lower in ("exit", "quit"):
@@ -311,8 +311,11 @@ def simulate_command(command, hostname, fake_uname, session_username=None, sessi
         return "root"
     elif cmd_lower.startswith("ps"):
         return simulate_ps()
-    elif cmd_lower == "who" and session_username and session_ip:
-        return simulate_who(session_username, session_ip)
+    elif cmd_lower == "who":
+        if session_username and session_ip:
+            return simulate_who(session_username, session_ip)
+        else:
+            return "julien    pts/0    2025-04-27 22:19 (127.0.0.1)"
     elif cmd_lower.startswith("cd"):
         return ""
     elif cmd_lower.startswith("wget") or cmd_lower.startswith("curl"):
@@ -321,6 +324,7 @@ def simulate_command(command, hostname, fake_uname, session_username=None, sessi
         return fake_uname
     else:
         return f"-bash: {command}: command not found"
+
 
 
 def parse_and_process_command(command_line, hostname, fake_uname, client_ip, session_id, session_username, fake_files, cwd):
