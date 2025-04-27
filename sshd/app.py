@@ -408,7 +408,8 @@ def parse_and_process_command(command_line, hostname, fake_uname, client_ip, ses
             "command": cmd,
             "session_id": session_id
         })
-        response = simulate_command(cmd, hostname, fake_uname, session_username, session_ip)
+        response = simulate_command(cmd, hostname, fake_uname, session_username, client_ip)
+
         responses.append(response)
 
     return responses, cwd
