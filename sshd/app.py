@@ -1,5 +1,6 @@
 import socket
 import paramiko
+from paramiko.ssh_exception import SSHException
 import threading
 import random
 import hashlib
