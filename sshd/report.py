@@ -92,7 +92,7 @@ def generate_html(time_series, top_ips, ipinfo_data, top_users, top_passwords, t
         city = info.get('city', 'N/A')
         country = info.get('country', 'N/A')
         org = info.get('org', 'N/A')
-        html += f"<tr><td>{ip}</td><td>{city}</td><td><img src='https://flagsapi.com/{country}/shiny/64.png' alt='{country}'></td><td>{org}</td></tr>"
+        html += f"<tr><td>{ip}</td><td>{city}</td><td><img src='https://flagsapi.com/{country}/shiny/32.png' alt='{country}'></td><td>{org}</td></tr>"
 
     html += """
 
