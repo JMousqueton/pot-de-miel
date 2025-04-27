@@ -163,8 +163,8 @@ $(document).ready(function() {
 </script>
 <footer class="text-center mt-5 mb-3 text-muted small">
     <p>
-        &copy; 2025<span id="year"></span> Julien Mousqueton — 
-        <a href="https://github.com/JMousqueton/pot-de-miel" target="_blank">
+        &copy; 2025<span id="year"></span> Julien Mousqueton —
+        <a href="https://github.com/JMousqueton/pot-de-miel" target="_blank" style="text-decoration: none; color: #6c757d;">
             <i class="fab fa-github"></i> pot-de-miel
         </a>
     </p>
