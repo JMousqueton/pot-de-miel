@@ -8,6 +8,8 @@ import json
 import os
 import re
 from dotenv import load_dotenv
+import requests
+import hashlib
 
 # Load environment variables
 load_dotenv()
@@ -19,6 +21,8 @@ SERVICE_NAME = os.getenv("SERVICE_NAME", "ssh-honeypot")
 LOGINPASSWD = os.getenv("LOGINPASSWD", "True").lower() in ("true", "1", "yes")
 SSH_KEY_BITS = int(os.getenv("SSH_KEY_BITS", 2048))
 DEBUG = os.getenv("DEBUG", "False").lower() in ("true", "1", "yes")
+PAYLOAD_PATH = os.getenv("PAYLOAD_PATH", "./payloads")
+VT_API_KEY = os.getenv("VT_API_KEY")
 
 # Memory for per-IP host keys
 HOST_KEYS_BY_IP = {}
@@ -54,6 +58,56 @@ FAKE_FILESYSTEM = {
 }
 
 
+
+### Download payloads
+
+def download_payload(url, session_id):
+    try:
+        os.makedirs(PAYLOAD_PATH, exist_ok=True)
+        response = requests.get(url, timeout=10, allow_redirects=True)
+        if response.status_code == 200:
+            sha256_hash = hashlib.sha256(response.content).hexdigest()
+            save_path = os.path.join(PAYLOAD_PATH, sha256_hash)
+            with open(save_path, "wb") as f:
+                f.write(response.content)
+            
+            # Send to VirusTotal
+            analysis_id = send_to_virustotal(save_path)
+
+            print(f"[+] Payload downloaded and saved as {save_path}")
+            return True, save_path, sha256_hash, analysis_id
+
+        else:
+            print(f"[-] Failed to download payload: {url} (status {response.status_code})")
+            return False, None, None
+    except Exception as e:
+        print(f"[-] Exception during payload download: {e}")
+        return False, None, None
+
+def send_to_virustotal(filepath):
+    if not VT_API_KEY:
+        print("[!] VirusTotal API key not set. Skipping VT upload.")
+        return None
+
+    url = "https://www.virustotal.com/api/v3/files"
+    headers = {
+        "x-apikey": VT_API_KEY,
+    }
+    try:
+        with open(filepath, "rb") as f:
+            files = {"file": (os.path.basename(filepath), f)}
+            response = requests.post(url, headers=headers, files=files)
+        if response.status_code == 200:
+            data = response.json()
+            analysis_id = data.get("data", {}).get("id")
+            print(f"[+] Payload uploaded to VirusTotal. Analysis ID: {analysis_id}")
+            return analysis_id
+        else:
+            print(f"[-] Failed to upload to VirusTotal: {response.status_code} {response.text}")
+            return None
+    except Exception as e:
+        print(f"[-] Exception during VirusTotal upload: {e}")
+        return None
 
 # === Logging functions ===
 
@@ -220,10 +274,38 @@ def simulate_command(command, hostname, fake_uname, session_username=None, sessi
         return simulate_who(session_username, session_ip)
     elif command.startswith("cd"):
         return ""
-    elif command.startswith("wget"):
-        return f"Connecting to {command.split()[-1]} ... connected."
-    elif command.startswith("curl"):
-        return f"Downloading {command.split()[-1]} ..."
+    elif cmd.startswith("wget") or cmd.startswith("curl"):
+        url = extract_url(cmd)
+        if url:
+            success, filepath, sha256_hash, analysis_id = download_payload(url, session_id)
+            if success:
+                log_event_human_structured(
+                    event_type="payload_downloaded",
+                    src_ip=client_ip,
+                    session_id=session_id,
+                    extra=f"{filepath} (sha256={sha256_hash}) analysis_id={analysis_id}"
+                )
+                log_event_json(SERVICE_NAME, {
+                    "src_ip": client_ip,
+                    "event": "payload_downloaded",
+                    "file_path": filepath,
+                    "sha256": sha256_hash,
+                    "virustotal_analysis_id": analysis_id,
+                    "session_id": session_id
+                })
+            else:
+                log_event_human_structured(
+                    event_type="payload_failed",
+                    src_ip=client_ip,
+                    session_id=session_id,
+                    extra=url
+                )
+                log_event_json(SERVICE_NAME, {
+                    "src_ip": client_ip,
+                    "event": "payload_failed",
+                    "url": url,
+                    "session_id": session_id
+                })
     elif command == "uname -a":
         return fake_uname
     else:
