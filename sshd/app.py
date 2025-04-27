@@ -559,6 +559,14 @@ def handle_connection(client_socket, addr):
             session_thread = threading.Thread(target=session_handler, args=(channel, hostname, fake_uname, ip_source, server.session_id, server.username))
             session_thread.start()
             session_thread.join()
+    except SSHException as e:
+        print(f"[!] SSHException with {ip_source}: {e}")
+        log_event_human_structured(event_type="ssh_exception", src_ip=ip_source, extra=str(e))
+        log_event_json(SERVICE_NAME, {
+            "src_ip": ip_source,
+            "event": "ssh_exception",
+            "error_message": str(e)
+        })
     except Exception as e:
         print(f"Exception during SSH handling with {ip_source}: {e} ({type(e).__name__})")
         log_event_human_structured(event_type="connection_failure", src_ip=ip_source, extra=str(e))
