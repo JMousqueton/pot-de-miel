@@ -38,7 +38,13 @@ def generate_html(time_series, top_ips, top_users, top_passwords, top_credential
 </head>
 <body class=\"bg-light\">
 <div class=\"container my-5\">
-<h1 class=\"mb-4 text-center\"><i class=\"fas fa-shield-alt\"></i> SSH Honeypot Dashboard</h1>
+<h1 class="mb-4 text-center" style="color: #DAA520;">
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="40" height="40" style="vertical-align: middle; margin-right: 10px; fill: #DAA520;">
+    <path d="M12 2C10.8954 2 10 2.89543 10 4C10 4.41421 10.3358 4.75 10.75 4.75H13.25C13.6642 4.75 14 4.41421 14 4C14 2.89543 13.1046 2 12 2ZM7 6C5.89543 6 5 6.89543 5 8C5 8.55228 5.44772 9 6 9H18C18.5523 9 19 8.55228 19 8C19 6.89543 18.1046 6 17 6H7ZM4 10C3.44772 10 3 10.4477 3 11V12C3 12.5523 3.44772 13 4 13H5L6.38554 19.4497C6.73107 21.0233 8.19269 22 9.80761 22H14.1924C15.8073 22 17.2689 21.0233 17.6145 19.4497L19 13H20C20.5523 13 21 12.5523 21 12V11C21 10.4477 20.5523 10 20 10H4Z"/>
+  </svg>
+  SSH Honeypot Dashboard
+</h1>
+
 
 <div class=\"mb-5\">
 <h2><i class=\"fas fa-clock\"></i> Attempts Over Time</h2>
