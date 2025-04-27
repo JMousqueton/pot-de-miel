@@ -45,6 +45,16 @@ EXCEPTION_CREDENTIALS = [
     ("testuser", "testpass123"),
 ]
 
+FAKE_FILESYSTEM = {
+    "/": ["etc", "home", "var", "tmp"],
+    "/etc": ["passwd", "shadow", "ssh"],
+    "/home": ["admin", "user"],
+    "/var": ["log"],
+    "/tmp": [],
+}
+
+
+
 # === Logging functions ===
 
 def log_event_human_structured(event_type, src_ip, username=None, password=None, session_id=None, reason=None, extra=None):
