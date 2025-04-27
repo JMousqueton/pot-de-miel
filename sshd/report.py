@@ -92,12 +92,14 @@ def generate_html(time_series, top_ips, ipinfo_data, top_users, top_passwords, t
         city = info.get('city', 'N/A')
         country = info.get('country', 'N/A')
         org = info.get('org', 'N/A')
-        html += f"<tr><td>{ip}</td><td>{city}</td><td>{country}</td><td>{org}</td></tr>"
+        html += f"<tr><td>{ip}</td><td>{city}</td><td><img src="https://flagsapi.com/{country}/shiny/64.png" alt="{country}"></td><td>{org}</td></tr>"
 
     html += """
 
     </tbody></table>
 </div>
+</div>
+
 <div class=\"mb-5\">
 <h2><i class=\"fas fa-user\"></i> Top Usernames</h2>
 <canvas id=\"topusers\" height=\"100\"></canvas>
