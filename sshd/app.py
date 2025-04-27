@@ -9,7 +9,7 @@ import os
 import re
 from dotenv import load_dotenv
 import requests
-import hashlib
+import time
 
 # Load environment variables
 load_dotenv()
@@ -75,14 +75,19 @@ def download_payload(url, session_id):
             analysis_id = send_to_virustotal(save_path)
 
             print(f"[+] Payload downloaded and saved as {save_path}")
+            time.sleep(5)
+            result = fetch_virustotal_result(analysis_id)
+            if result:
+                print(f"[+] VT Analysis - Malicious: {result['malicious']}, Suspicious: {result['suspicious']}")
             return True, save_path, sha256_hash, analysis_id
 
         else:
             print(f"[-] Failed to download payload: {url} (status {response.status_code})")
-            return False, None, None
+            return False, None, None, None
     except Exception as e:
         print(f"[-] Exception during payload download: {e}")
-        return False, None, None
+        return False, None, None, None
+
 
 def send_to_virustotal(filepath):
     if not VT_API_KEY:
@@ -96,7 +101,7 @@ def send_to_virustotal(filepath):
     try:
         with open(filepath, "rb") as f:
             files = {"file": (os.path.basename(filepath), f)}
-            response = requests.post(url, headers=headers, files=files)
+            response = requests.post(url, headers=headers, files=files, timeout=30)
         if response.status_code == 200:
             data = response.json()
             analysis_id = data.get("data", {}).get("id")
@@ -107,6 +112,37 @@ def send_to_virustotal(filepath):
             return None
     except Exception as e:
         print(f"[-] Exception during VirusTotal upload: {e}")
+        return None
+
+    
+def fetch_virustotal_result(analysis_id):
+    if not VT_API_KEY or not analysis_id:
+        return None
+
+    url = f"https://www.virustotal.com/api/v3/analyses/{analysis_id}"
+    headers = {
+        "x-apikey": VT_API_KEY,
+    }
+    try:
+        response = requests.get(url, headers=headers, timeout=30)
+        if response.status_code == 200:
+            data = response.json()
+            stats = data.get("data", {}).get("attributes", {}).get("stats", {})
+            malicious = stats.get("malicious", 0)
+            suspicious = stats.get("suspicious", 0)
+            harmless = stats.get("harmless", 0)
+            undetected = stats.get("undetected", 0)
+            return {
+                "malicious": malicious,
+                "suspicious": suspicious,
+                "harmless": harmless,
+                "undetected": undetected
+            }
+        else:
+            print(f"[-] Failed to retrieve VT analysis result: {response.status_code} {response.text}")
+            return None
+    except Exception as e:
+        print(f"[-] Exception while fetching VT result: {e}")
         return None
 
 # === Logging functions ===
@@ -274,38 +310,9 @@ def simulate_command(command, hostname, fake_uname, session_username=None, sessi
         return simulate_who(session_username, session_ip)
     elif command.startswith("cd"):
         return ""
-    elif cmd.startswith("wget") or cmd.startswith("curl"):
-        url = extract_url(cmd)
-        if url:
-            success, filepath, sha256_hash, analysis_id = download_payload(url, session_id)
-            if success:
-                log_event_human_structured(
-                    event_type="payload_downloaded",
-                    src_ip=client_ip,
-                    session_id=session_id,
-                    extra=f"{filepath} (sha256={sha256_hash}) analysis_id={analysis_id}"
-                )
-                log_event_json(SERVICE_NAME, {
-                    "src_ip": client_ip,
-                    "event": "payload_downloaded",
-                    "file_path": filepath,
-                    "sha256": sha256_hash,
-                    "virustotal_analysis_id": analysis_id,
-                    "session_id": session_id
-                })
-            else:
-                log_event_human_structured(
-                    event_type="payload_failed",
-                    src_ip=client_ip,
-                    session_id=session_id,
-                    extra=url
-                )
-                log_event_json(SERVICE_NAME, {
-                    "src_ip": client_ip,
-                    "event": "payload_failed",
-                    "url": url,
-                    "session_id": session_id
-                })
+    elif command.startswith("wget") or command.startswith("curl"):
+        # Wget and curl **DO NOT RETURN anything special here**
+        return ""  # We handled them separately (download/log) in parse_and_process_command()
     elif command == "uname -a":
         return fake_uname
     else:
@@ -319,6 +326,7 @@ def parse_and_process_command(command_line, hostname, fake_uname, client_ip, ses
         if not cmd:
             continue
 
+        
         if cmd.startswith("cd "):
             parts = cmd.split(maxsplit=1)
             target = parts[1] if len(parts) > 1 else "/"
@@ -346,9 +354,43 @@ def parse_and_process_command(command_line, hostname, fake_uname, client_ip, ses
                     responses.append(f"cat: {filepath}: No such file or directory")
             continue
 
-        # Handle exit and other commands
+        if cmd.startswith("wget") or cmd.startswith("curl"):
+            url = extract_url(cmd)
+            if url:
+                success, filepath, sha256_hash, analysis_id = download_payload(url, session_id)
+                if success:
+                    log_event_human_structured(
+                        event_type="payload_downloaded",
+                        src_ip=client_ip,
+                        session_id=session_id,
+                        extra=f"{filepath} (sha256={sha256_hash}) analysis_id={analysis_id}"
+                    )
+                    log_event_json(SERVICE_NAME, {
+                        "src_ip": client_ip,
+                        "event": "payload_downloaded",
+                        "file_path": filepath,
+                        "sha256": sha256_hash,
+                        "virustotal_analysis_id": analysis_id,
+                        "session_id": session_id
+                    })
+                else:
+                    log_event_human_structured(
+                        event_type="payload_failed",
+                        src_ip=client_ip,
+                        session_id=session_id,
+                        extra=url
+                    )
+                    log_event_json(SERVICE_NAME, {
+                        "src_ip": client_ip,
+                        "event": "payload_failed",
+                        "url": url,
+                        "session_id": session_id
+                    })
+
+        # THEN simulate the command normally:
         response = simulate_command(cmd, hostname, fake_uname, session_username, client_ip)
         responses.append(response)
+
     return responses, cwd
 
 
