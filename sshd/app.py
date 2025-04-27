@@ -98,7 +98,21 @@ def extract_url(command):
     match = re.search(r'(https?://[^\s]+)', command)
     return match.group(1) if match else None
 
+def resolve_path(cwd, path):
+    if path.startswith("/"):
+        return path
+    if cwd.endswith("/"):
+        return cwd + path
+    return cwd + "/" + path
 
+def resolve_cd(cwd, target):
+    if target == "..":
+        return "/" if cwd == "/" else "/".join(cwd.rstrip("/").split("/")[:-1]) or "/"
+    elif target.startswith("/"):
+        return target if target in FAKE_FILESYSTEM else None
+    else:
+        new_path = cwd.rstrip("/") + "/" + target
+        return new_path if new_path in FAKE_FILESYSTEM else None
 
 #### COMMANDS SIMULATION
 
@@ -164,6 +178,21 @@ def simulate_who(session_username, session_ip):
 
     return "\n".join(entries)
 
+def generate_fake_file_contents(session_username):
+    return {
+        "/etc/passwd": (
+            "root:x:0:0:root:/root:/bin/bash\n"
+            "admin:x:1000:1000:Admin User:/home/admin:/bin/bash\n"
+            f"{session_username}:x:1001:1001:SSH User:/home/{session_username}:/bin/bash\n"
+        ),
+        "/etc/shadow": (
+            "root:*:18143:0:99999:7:::\n"
+            "admin:*:18143:0:99999:7:::\n"
+            f"{session_username}:*:18143:0:99999:7:::\n"
+        ),
+    }
+
+
 
 def simulate_command(command, hostname, fake_uname, session_username=None, session_ip=None):
     command = command.lower()
@@ -190,45 +219,46 @@ def simulate_command(command, hostname, fake_uname, session_username=None, sessi
     else:
         return f"-bash: {command}: command not found"
 
-def parse_and_process_command(command_line, hostname, fake_uname, client_ip, session_id, session_username):
+def parse_and_process_command(command_line, hostname, fake_uname, client_ip, session_id, session_username, fake_files, cwd):
     commands = re.split(r';|&&|\|\|', command_line)
     responses = []
     for cmd in commands:
         cmd = cmd.strip()
         if not cmd:
             continue
-        log_event_human_structured(
-            event_type="command",
-            src_ip=client_ip,
-            username=None,
-            password=None,
-            session_id=session_id,
-            extra=cmd
-        )
-        log_event_json(SERVICE_NAME, {
-            "src_ip": client_ip,
-            "event": "command",
-            "command": cmd,
-            "session_id": session_id
-        })
-        if cmd.startswith("wget") or cmd.startswith("curl"):
-            url = extract_url(cmd)
-            if url:
-                log_event_human_structured(
-                    event_type="url_detected",
-                    src_ip=client_ip,
-                    session_id=session_id,
-                    extra=url
-                )
-                log_event_json(SERVICE_NAME, {
-                    "src_ip": client_ip,
-                    "event": "url_detected",
-                    "url": url,
-                    "session_id": session_id
-                })
+
+        if cmd.startswith("cd "):
+            parts = cmd.split(maxsplit=1)
+            target = parts[1] if len(parts) > 1 else "/"
+            new_cwd = resolve_cd(cwd, target)
+            if new_cwd is not None:
+                cwd = new_cwd
+            responses.append("")  # No output on success
+            continue
+
+        if cmd == "ls":
+            entries = [entry for path, entry in FAKE_FILESYSTEM.items() if path == cwd]
+            if entries:
+                responses.append("  ".join(entries[0]))
+            else:
+                responses.append("")
+            continue
+
+        if cmd.startswith("cat "):
+            parts = cmd.split(maxsplit=1)
+            if len(parts) > 1:
+                filepath = resolve_path(cwd, parts[1])
+                if filepath in fake_files:
+                    responses.append(fake_files[filepath])
+                else:
+                    responses.append(f"cat: {filepath}: No such file or directory")
+            continue
+
+        # Handle exit and other commands
         response = simulate_command(cmd, hostname, fake_uname, session_username, client_ip)
         responses.append(response)
-    return responses
+    return responses, cwd
+
 
 # === SSH Server class ===
 
@@ -287,13 +317,18 @@ class SSHServer(paramiko.ServerInterface):
         return True
 
 # === Session Handler ===
-
 def session_handler(channel, hostname, fake_uname, client_ip, session_id, session_username):
     try:
         channel.settimeout(60)
+
+        # NEW: Generate fake file contents dynamically
+        fake_files = generate_fake_file_contents(session_username)
+        current_directory = "/"  # Start at root
+
         channel.send(f"Welcome to Ubuntu 20.04 LTS (GNU/Linux {fake_uname.split()[2]})\n\n")
         channel.send(f"root@{hostname}:~# ")
         buffer = ""
+
         while True:
             try:
                 data = channel.recv(1024)
@@ -304,11 +339,14 @@ def session_handler(channel, hostname, fake_uname, client_ip, session_id, sessio
                     if char == "\r" or char == "\n":
                         command, buffer = buffer.strip(), ""
                         if command:
-                            responses = parse_and_process_command(command, hostname, fake_uname, client_ip, session_id, session_username)
+                            # Updated simulate_command to pass fake_files and current_directory
+                            responses, current_directory = parse_and_process_command(
+                                command, hostname, fake_uname, client_ip, session_id, session_username, fake_files, current_directory
+                            )
                             for response in responses:
                                 if response == "__EXIT__":
                                     channel.send("logout\n")
-                                    return  # ferme proprement le handler (et channel.close() est dans finally)
+                                    return
                                 channel.send(response + "\n")
                         channel.send(f"root@{hostname}:~# ")
                     else:
@@ -319,6 +357,7 @@ def session_handler(channel, hostname, fake_uname, client_ip, session_id, sessio
         print(f"Exception in session with {client_ip}: {e} ({type(e).__name__})")
     finally:
         channel.close()
+
 
 # === Connection Handler ===
 
