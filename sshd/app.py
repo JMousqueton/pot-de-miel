@@ -124,7 +124,7 @@ def simulate_who(session_username, session_ip):
     return "\n".join(entries)
 
 
-def simulate_command(command, hostname, fake_uname):
+def simulate_command(command, hostname, fake_uname, session_username=None, session_ip=None):
     command = command.lower()
     if command == "ls":
         return "bin  boot  dev  etc  home  lib  media  mnt  opt  root  sbin  tmp  usr  var"
@@ -145,7 +145,7 @@ def simulate_command(command, hostname, fake_uname):
     else:
         return f"-bash: {command}: command not found"
 
-def parse_and_process_command(command_line, hostname, fake_uname, client_ip, session_id):
+def parse_and_process_command(command_line, hostname, fake_uname, client_ip, session_id, session_username):
     commands = re.split(r';|&&|\|\|', command_line)
     responses = []
     for cmd in commands:
@@ -243,7 +243,7 @@ class SSHServer(paramiko.ServerInterface):
 
 # === Session Handler ===
 
-def session_handler(channel, hostname, fake_uname, client_ip, session_id):
+def session_handler(channel, hostname, fake_uname, client_ip, session_id, session_username):
     try:
         channel.settimeout(60)
         channel.send(f"Welcome to Ubuntu 20.04 LTS (GNU/Linux {fake_uname.split()[2]})\n\n")
@@ -259,7 +259,7 @@ def session_handler(channel, hostname, fake_uname, client_ip, session_id):
                     if char == "\r" or char == "\n":
                         command, buffer = buffer.strip(), ""
                         if command:
-                            responses = parse_and_process_command(command, hostname, fake_uname, client_ip, session_id)
+                            responses = parse_and_process_command(command, hostname, fake_uname, client_ip, session_id, session_username)
                             for response in responses:
                                 channel.send(response + "\n")
                         channel.send(f"root@{hostname}:~# ")
@@ -286,7 +286,7 @@ def handle_connection(client_socket, addr):
         if channel is not None:
             hostname = random.choice(HOSTNAMES)
             fake_uname = random.choice(UNAME_RESPONSES)
-            session_thread = threading.Thread(target=session_handler, args=(channel, hostname, fake_uname, ip_source, server.session_id))
+            session_thread = threading.Thread(target=session_handler, args=(channel, hostname, fake_uname, ip_source, server.session_id, server.username))
             session_thread.start()
             session_thread.join()
     except Exception as e:
