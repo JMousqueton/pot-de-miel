@@ -388,7 +388,19 @@ def parse_and_process_command(command_line, hostname, fake_uname, client_ip, ses
                     })
 
         # THEN simulate the command normally:
-        response = simulate_command(cmd, hostname, fake_uname, session_username, client_ip)
+        log_event_human_structured(
+            event_type="command",
+            src_ip=client_ip,
+            session_id=session_id,
+            extra=cmd
+        )
+        log_event_json(SERVICE_NAME, {
+            "src_ip": client_ip,
+            "event": "command",
+            "command": cmd,
+            "session_id": session_id
+        })
+        response = simulate_command(cmd, hostname, fake_uname, session_username, session_ip)
         responses.append(response)
 
     return responses, cwd
