@@ -106,7 +106,7 @@ def generate_html(time_series, top_ips, ipinfo_data, top_users, top_passwords, t
 
     </tbody></table>
 </div>
-</div>
+<p></p>
 
 <div class=\"mb-5\">
 <h2><i class=\"fas fa-user\"></i> Top Usernames</h2>
