@@ -587,6 +587,7 @@ def handle_connection(client_socket, addr):
 
 def start_server():
     server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     server_socket.bind((HOST, PORT))
     server_socket.listen(100)
     print(f"[+] SSH honeypot listening on {HOST}:{PORT}")
