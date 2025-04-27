@@ -91,8 +91,16 @@ def generate_html(time_series, top_ips, ipinfo_data, top_users, top_passwords, t
     for ip, info in ipinfo_data.items():
         city = info.get('city', 'N/A')
         country = info.get('country', 'N/A')
-        org = info.get('org', 'N/A')
-        html += f"<tr><td>{ip} <a href='https://ipinfo.io/{ip}' target='_blank' style='text-decoration: none; font-size: 0.8em; vertical-align: top; margin-left: 5px;'><i class='fas fa-info-circle'></i></a></td><td>{city}</td><td><img src='https://flagsapi.com/{country}/shiny/32.png' alt='{country}'></td><td>{org}</td></tr>"
+        org_info = info.get('org', 'N/A')
+        asn = 'N/A'
+        org_name = 'N/A'
+        if org_info != 'N/A':
+            parts = org_info.split(' ', 1)
+            if len(parts) == 2:
+                asn, org_name = parts
+            else:
+                org_name = org_info
+        html += f"<tr><td>{ip} <a href='https://ipinfo.io/{ip}' target='_blank' style='text-decoration: none; font-size: 0.8em; vertical-align: top; margin-left: 5px;'><i class='fas fa-info-circle'></i></a></td><td>{city}</td><td><img src='https://flagsapi.com/{country}/shiny/32.png' alt='{country}'></td><td>{org}<a href='https://asnlookup.com/asn/{asn}' target='_blank' style='text-decoration: none; font-size: 0.8em; vertical-align: top; margin-left: 5px;'><i class='fas fa-info-circle'></i></a></td></tr>"
 
     html += """
 
