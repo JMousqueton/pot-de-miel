@@ -1,1 +1,13 @@
+version: '3.8'
 
+services:
+  ssh-honeypot:
+    build: .
+    container_name: ssh-honeypot
+    restart: unless-stopped
+    ports:
+      - "${PORT}:${PORT}"  # Port SSH dynamique (ex : 22:22 ou 2222:22)
+    volumes:
+      - ./logs:${LOG_PATH}  # Volume dynamique depuis .env
+    env_file:
+      - .env
