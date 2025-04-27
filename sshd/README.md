@@ -32,7 +32,7 @@ A lightweight and interactive **SSH honeypot** that simulates a realistic Linux 
 
 ### 1. Clone the repository
 ```bash
-git clone https://github.com/YOUR_USERNAME/ssh-honeypot.git
+git clone https://github.com/jmousqueton/ssh-honeypot.git
 cd ssh-honeypot
 ```
 
@@ -62,7 +62,7 @@ Available `.env` variables:
 
 ```bash
 docker build -t ssh-honeypot .
-docker run -d --restart unless-stopped --env-file .env -p 22:22 -v $(pwd)/logs:/opt/potdemiel/sshd/logs --name ssh-honeypot ssh-honeypot
+docker run -d --restart unless-stopped --env-file .env -p 22:22 -v $(pwd)/logs:/opt/pot-de-miel/sshd/logs --name ssh-honeypot ssh-honeypot
 ```
 
 Or use `docker-compose`:
