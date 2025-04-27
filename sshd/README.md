@@ -121,8 +121,6 @@ You can define credentials that trigger special behavior (alert in logs) using t
 Example configuration:
 
 ```python
-Copier
-Modifier
 EXCEPTION_CREDENTIALS = [
     ("*", "3245gs5662d34"),
     ("admin", "*"),
