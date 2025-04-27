@@ -98,6 +98,47 @@ def extract_url(command):
     match = re.search(r'(https?://[^\s]+)', command)
     return match.group(1) if match else None
 
+
+
+#### COMMANDS SIMULATION
+
+def simulate_ps():
+    users = ["root", "admin", "user1", "mysql", "www-data", "ubuntu"]
+    commands = [
+        "/usr/sbin/sshd -D",
+        "/usr/sbin/apache2 -k start",
+        "/usr/sbin/mysqld",
+        "/usr/bin/python3 app.py",
+        "/usr/bin/php-fpm",
+        "/usr/bin/redis-server *:6379",
+        "/usr/bin/docker-containerd",
+        "/usr/bin/bash"
+    ]
+    
+    header = "USER       PID %CPU %MEM    VSZ   RSS TTY      STAT START   TIME COMMAND"
+    lines = [header]
+    now = datetime.datetime.now()
+
+    for _ in range(random.randint(8, 15)):
+        user = random.choice(users)
+        pid = random.randint(100, 4000)
+        cpu = f"{random.uniform(0.0, 3.0):.1f}"
+        mem = f"{random.uniform(0.0, 1.5):.1f}"
+        vsz = random.randint(30000, 500000)
+        rss = random.randint(5000, 50000)
+        tty = "?"  # Simpler
+        stat = random.choice(["Ss", "R+", "S+", "Sl", "Z"])
+        start = now.strftime("%H:%M")
+        time = f"{random.randint(0, 1)}:{random.randint(0,59):02d}"
+        cmd = random.choice(commands)
+
+        lines.append(f"{user:<10} {pid:<5} {cpu:<4} {mem:<4} {vsz:<6} {rss:<5} {tty:<8} {stat:<4} {start:<7} {time:<5} {cmd}")
+
+    return "\n".join(lines)
+
+
+
+
 def simulate_who(session_username, session_ip):
     usernames = ["root", "admin", "user1", "user2", "ubuntu"]
     terminals = [f"pts/{i}" for i in range(5)]
@@ -134,6 +175,8 @@ def simulate_command(command, hostname, fake_uname, session_username=None, sessi
         return "/root"
     elif command == "whoami":
         return "root"
+    elif command.startswith("ps"):
+        return simulate_ps()
     elif command == "who" and session_username and session_ip:
         return simulate_who(session_username, session_ip)
     elif command.startswith("cd"):
