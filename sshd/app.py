@@ -295,28 +295,33 @@ def generate_fake_file_contents(session_username):
 
 
 def simulate_command(command, hostname, fake_uname, session_username=None, session_ip=None):
-    command = command.lower()
-    if command in ("exit", "quit"):
+    command = command.strip()
+    if not command:
+        return ""  # Empty command, nothing to do
+
+    cmd_lower = command.lower()
+
+    if cmd_lower in ("exit", "quit"):
         return "__EXIT__"
-    if command == "ls":
+    if cmd_lower == "ls":
         return "bin  boot  dev  etc  home  lib  media  mnt  opt  root  sbin  tmp  usr  var"
-    elif command == "pwd":
+    elif cmd_lower == "pwd":
         return "/root"
-    elif command == "whoami":
+    elif cmd_lower == "whoami":
         return "root"
-    elif command.startswith("ps"):
+    elif cmd_lower.startswith("ps"):
         return simulate_ps()
-    elif command == "who" and session_username and session_ip:
+    elif cmd_lower == "who" and session_username and session_ip:
         return simulate_who(session_username, session_ip)
-    elif command.startswith("cd"):
+    elif cmd_lower.startswith("cd"):
         return ""
-    elif command.startswith("wget") or command.startswith("curl"):
-        # Wget and curl **DO NOT RETURN anything special here**
-        return ""  # We handled them separately (download/log) in parse_and_process_command()
-    elif command == "uname -a":
+    elif cmd_lower.startswith("wget") or cmd_lower.startswith("curl"):
+        return ""
+    elif cmd_lower == "uname -a":
         return fake_uname
     else:
         return f"-bash: {command}: command not found"
+
 
 def parse_and_process_command(command_line, hostname, fake_uname, client_ip, session_id, session_username, fake_files, cwd):
     commands = re.split(r';|&&|\|\|', command_line)
@@ -387,7 +392,6 @@ def parse_and_process_command(command_line, hostname, fake_uname, client_ip, ses
                         "session_id": session_id
                     })
 
-        # THEN simulate the command normally:
         log_event_human_structured(
             event_type="command",
             src_ip=client_ip,
