@@ -41,7 +41,7 @@ def load_events(filename):
             events.append(json.loads(line))
     return events
 
-def generate_html(time_series, top_ips, ipinfo_data, top_users, top_passwords, top_credentials, commands, payloads, begin_date, last_date):
+def generate_html(time_series, top_ips, top_users, top_passwords, top_credentials, commands, payloads, begin_date, last_date, total_entries, unique_ips, unique_logins):
     html = f"""
 <!DOCTYPE html>
 <html lang=\"en\">
@@ -63,11 +63,15 @@ def generate_html(time_series, top_ips, ipinfo_data, top_users, top_passwords, t
   SSH Honeypot Dashboard
 </h1>
 
-<div class="card text-center my-4 shadow-sm">
+<div class="card my-4 shadow-sm">
   <div class="card-body">
-    <h5 class="card-title" style="color: #DAA520;"><i class="fas fa-calendar-alt"></i> Timeline</h5>
+    <h5 class="card-title" style="color: #DAA520;"><i class="fas fa-calendar-alt"></i> Timeline & Stats</h5>
     <p class="card-text mb-1"><strong>Begin Date:</strong> {begin_date}</p>
-    <p class="card-text"><strong>Last Date:</strong> {last_date}</p>
+    <p class="card-text mb-1"><strong>Last Date:</strong> {last_date}</p>
+    <hr>
+    <p class="card-text mb-1"><strong>Total Entries:</strong> {total_entries}</p>
+    <p class="card-text mb-1"><strong>Unique IPs:</strong> {unique_ips}</p>
+    <p class="card-text"><strong>Unique Logins:</strong> {unique_logins}</p>
   </div>
 </div>
 
@@ -284,11 +288,29 @@ def main():
         ipinfo_data[ip] = get_ipinfo(ip)
 
 
+    total_entries = len(events)
+    unique_ips = len(set(e['src_ip'] for e in events if 'src_ip' in e))
+    unique_logins = len(set(e['username'] for e in events if 'username' in e))
+
     timestamps = sorted(e.get('timestamp') for e in events if 'timestamp' in e)
     begin_date = timestamps[0] if timestamps else "N/A"
     last_date = timestamps[-1] if timestamps else "N/A"
 
-    html_content = generate_html(time_series, top_ips, ipinfo_data, top_users, top_passwords, top_credentials, commands, payloads, begin_date, last_date)
+    html_content = generate_html(
+        time_series,
+        top_ips,
+        top_users,
+        top_passwords,
+        top_credentials,
+        commands,
+        payloads,
+        begin_date,
+        last_date,
+        total_entries,
+        unique_ips,
+        unique_logins
+    )
+
 
     with open(OUTPUT_HTML, 'w') as f:
         f.write(html_content)
