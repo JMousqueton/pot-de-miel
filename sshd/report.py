@@ -159,14 +159,14 @@ def generate_html(time_series, top_ips, ipinfo_data, top_users, top_passwords, t
 <h2><i class=\"fas fa-bug\"></i> Payloads</h2>
 <div class=\"table-responsive\">
 <table id=\"payloads\" class=\"table table-striped table-bordered\">
-<thead class=\"table-dark\"><tr><th>SHA256</th><th>File Path</th><th>VirusTotal</th></tr></thead>
+<thead class=\"table-dark\"><tr><th>SHA256</th><th>VirusTotal</th></tr></thead>
 <tbody>
 """
     for payload in payloads:
         sha = payload['sha256']
         file_path = payload['file_path']
         vt_link = f"https://www.virustotal.com/gui/file/{sha}"
-        html += f"<tr><td>{sha}</td><td>{file_path}</td><td><a href='{vt_link}' target='_blank' class='btn btn-primary btn-sm'><i class='fas fa-external-link-alt'></i> View</a></td></tr>"
+        html += f"<tr><td>{sha}</td><td><a href='{vt_link}' target='_blank' class='btn btn-primary btn-sm'><i class='fas fa-external-link-alt'></i> View</a></td></tr>"
 
     html += """
 </tbody></table>
