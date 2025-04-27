@@ -41,7 +41,7 @@ def load_events(filename):
             events.append(json.loads(line))
     return events
 
-def generate_html(time_series, top_ips, top_users, top_passwords, top_credentials, commands, payloads, begin_date, last_date, total_entries, unique_ips, unique_logins):
+def generate_html(time_series, top_ips, ipinfo_data, top_users, top_passwords, top_credentials, commands, payloads, begin_date, last_date, total_entries, unique_ips, unique_logins):
     html = f"""
 <!DOCTYPE html>
 <html lang=\"en\">
@@ -299,6 +299,7 @@ def main():
     html_content = generate_html(
         time_series,
         top_ips,
+        ipinfo_data,
         top_users,
         top_passwords,
         top_credentials,
