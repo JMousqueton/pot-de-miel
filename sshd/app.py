@@ -126,6 +126,8 @@ def simulate_who(session_username, session_ip):
 
 def simulate_command(command, hostname, fake_uname, session_username=None, session_ip=None):
     command = command.lower()
+    if command in ("exit", "quit"):
+        return "__EXIT__"
     if command == "ls":
         return "bin  boot  dev  etc  home  lib  media  mnt  opt  root  sbin  tmp  usr  var"
     elif command == "pwd":
@@ -259,16 +261,13 @@ def session_handler(channel, hostname, fake_uname, client_ip, session_id, sessio
                     if char == "\r" or char == "\n":
                         command, buffer = buffer.strip(), ""
                         if command:
-                            if command.lower() in ("exit", "quit"):
-                                channel.send("logout\n")
-                                break  # End the session
-
                             responses = parse_and_process_command(command, hostname, fake_uname, client_ip, session_id, session_username)
                             for response in responses:
+                                if response == "__EXIT__":
+                                    channel.send("logout\n")
+                                    return  # ferme proprement le handler (et channel.close() est dans finally)
                                 channel.send(response + "\n")
-
                         channel.send(f"root@{hostname}:~# ")
-
                     else:
                         buffer += char
             except socket.timeout:
