@@ -259,10 +259,16 @@ def session_handler(channel, hostname, fake_uname, client_ip, session_id, sessio
                     if char == "\r" or char == "\n":
                         command, buffer = buffer.strip(), ""
                         if command:
+                            if command.lower() in ("exit", "quit"):
+                                channel.send("logout\n")
+                                break  # End the session
+
                             responses = parse_and_process_command(command, hostname, fake_uname, client_ip, session_id, session_username)
                             for response in responses:
                                 channel.send(response + "\n")
+
                         channel.send(f"root@{hostname}:~# ")
+
                     else:
                         buffer += char
             except socket.timeout:
