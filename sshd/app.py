@@ -315,7 +315,7 @@ def simulate_command(command, hostname, fake_uname, session_username=None, sessi
         if session_username and session_ip:
             return simulate_who(session_username, session_ip)
         else:
-            return "julien    pts/0    2025-04-27 22:19 (127.0.0.1)"
+            return "root    pts/0    2025-04-27 22:19 (127.0.0.1)"
     elif cmd_lower.startswith("cd"):
         return ""
     elif cmd_lower.startswith("wget") or cmd_lower.startswith("curl"):
@@ -475,12 +475,17 @@ def session_handler(channel, hostname, fake_uname, client_ip, session_id, sessio
     try:
         channel.settimeout(60)
 
-        # NEW: Generate fake file contents dynamically
         fake_files = generate_fake_file_contents(session_username)
         current_directory = "/"  # Start at root
 
-        channel.send(f"Welcome to Ubuntu 20.04 LTS (GNU/Linux {fake_uname.split()[2]})\n\n")
-        channel.send(f"root@{hostname}:~# ")
+        try:
+            channel.send(f"Welcome to Ubuntu 20.04 LTS (GNU/Linux {fake_uname.split()[2]})\n\n")
+            channel.send(f"root@{hostname}:~# ")
+        except Exception as e:
+            print(f"[!] Error sending welcome message: {e}")
+            channel.close()
+            return
+
         buffer = ""
 
         while True:
@@ -489,28 +494,51 @@ def session_handler(channel, hostname, fake_uname, client_ip, session_id, sessio
                 if not data:
                     break
                 for char in data.decode("utf-8", errors="ignore"):
-                    channel.send(char)
+                    try:
+                        channel.send(char)
+                    except Exception as e:
+                        print(f"[!] Error sending character: {e}")
+                        return
                     if char == "\r" or char == "\n":
                         command, buffer = buffer.strip(), ""
                         if command:
-                            # Updated simulate_command to pass fake_files and current_directory
                             responses, current_directory = parse_and_process_command(
                                 command, hostname, fake_uname, client_ip, session_id, session_username, fake_files, current_directory
                             )
                             for response in responses:
                                 if response == "__EXIT__":
-                                    channel.send("logout\n")
+                                    try:
+                                        channel.send("logout\n")
+                                    except Exception as e:
+                                        print(f"[!] Error sending logout: {e}")
                                     return
-                                channel.send(response + "\n")
-                        channel.send(f"root@{hostname}:~# ")
+                                try:
+                                    channel.send(response + "\n")
+                                except Exception as e:
+                                    print(f"[!] Error sending response: {e}")
+                                    return
+                        try:
+                            channel.send(f"root@{hostname}:~# ")
+                        except Exception as e:
+                            print(f"[!] Error sending prompt: {e}")
+                            return
                     else:
                         buffer += char
             except socket.timeout:
-                channel.send(f"\nroot@{hostname}:~# ")
+                try:
+                    channel.send(f"\nroot@{hostname}:~# ")
+                except Exception as e:
+                    print(f"[!] Error sending prompt after timeout: {e}")
+                continue
+            except Exception as e:
+                print(f"[!] Exception in session loop: {e}")
+                break
+
     except Exception as e:
-        print(f"Exception in session with {client_ip}: {e} ({type(e).__name__})")
+        print(f"[!] General exception in session with {client_ip}: {e} ({type(e).__name__})")
     finally:
         channel.close()
+
 
 
 # === Connection Handler ===
