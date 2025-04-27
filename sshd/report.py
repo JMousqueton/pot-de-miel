@@ -4,12 +4,32 @@ import os
 from collections import Counter, defaultdict
 from pathlib import Path
 from dotenv import load_dotenv
+import requests
 
 load_dotenv()
 
 LOG_DIRECTORY = os.getenv("LOG_PATH", ".")
 OUTPUT_HTML = "honeypot_report.html"
 INPUT_LOG = os.path.join(LOG_DIRECTORY, "ssh-honeypot.jsonl")
+IPINFO_API_KEY = os.getenv("IPINFO_API_KEY", "")
+
+
+
+def get_ipinfo(ip):
+    if not IPINFO_API_KEY:
+        return {}
+    try:
+        url = f"https://ipinfo.io/{ip}?token={IPINFO_API_KEY}"
+        resp = requests.get(url, timeout=5)
+        if resp.status_code == 200:
+            return resp.json()
+        else:
+            return {}
+    except Exception as e:
+        print(f"Error fetching IP info for {ip}: {e}")
+        return {}
+
+
 
 def load_events(filename):
     events = []
@@ -62,6 +82,22 @@ def generate_html(time_series, top_ips, top_users, top_passwords, top_credential
 <canvas id=\"topips\" height=\"100\"></canvas>
 </div>
 
+<h2><i class="fas fa-globe"></i> IP Details</h2>
+<div class="table-responsive">
+<table class="table table-striped table-bordered">
+<thead class="table-dark"><tr><th>IP</th><th>City</th><th>Country</th><th>Org</th></tr></thead>
+<tbody>
+"""
+    for ip, info in ipinfo_data.items():
+        city = info.get('city', 'N/A')
+        country = info.get('country', 'N/A')
+        org = info.get('org', 'N/A')
+        html += f"<tr><td>{ip}</td><td>{city}</td><td>{country}</td><td>{org}</td></tr>"
+
+    html += """
+
+    </tbody></table>
+</div>
 <div class=\"mb-5\">
 <h2><i class=\"fas fa-user\"></i> Top Usernames</h2>
 <canvas id=\"topusers\" height=\"100\"></canvas>
@@ -232,6 +268,11 @@ def main():
     top_passwords = dict(password_counter.most_common(10))
     top_credentials = dict(credential_counter.most_common(10))
     commands = command_list
+
+    ipinfo_data = {}
+    for ip in top_ips.keys():
+        ipinfo_data[ip] = get_ipinfo(ip)
+
 
     timestamps = sorted(e.get('timestamp') for e in events if 'timestamp' in e)
     begin_date = timestamps[0] if timestamps else "N/A"
